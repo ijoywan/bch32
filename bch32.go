@@ -71,13 +71,13 @@ func createChecksum(hrp string, data []int) []int {
 	return ret
 }
 
-// Encode encodes hrp(human-readable part) and data(32bit data array), returns Bech32 / or error
-// if hrp is uppercase, return uppercase Bech32
+// Encode encodes hrp(human-readable part) and data(32bit data array), returns Bch32 / or error
+// if hrp is uppercase, return uppercase Bch32; if hrp is mixed, return mixed Bch32
 func Encode(hrp string, data []int) (string, error) {
 	if (len(hrp) + len(data) + 7) > 90 {
 		return "", fmt.Errorf("too long : hrp length=%d, data length=%d", len(hrp), len(data))
 	}
-	if len(hrp) < 1 {
+	if len(hrp) < 1 || len(hrp) > 2 {
 		return "", fmt.Errorf("invalid hrp : hrp=%v", hrp)
 	}
 	for p, c := range hrp {
@@ -85,10 +85,8 @@ func Encode(hrp string, data []int) (string, error) {
 			return "", fmt.Errorf("invalid character human-readable part : hrp[%d]=%d", p, c)
 		}
 	}
-	if strings.ToUpper(hrp) != hrp && strings.ToLower(hrp) != hrp {
-		return "", fmt.Errorf("mix case : hrp=%v", hrp)
-	}
 	lower := strings.ToLower(hrp) == hrp
+	mixed := (strings.ToUpper(hrp[0]) + strings.ToLower(hrp[1])) == hrp
 	hrp = strings.ToLower(hrp)
 	combined := append(data, createChecksum(hrp, data)...)
 	var ret bytes.Buffer
@@ -101,30 +99,29 @@ func Encode(hrp string, data []int) (string, error) {
 	}
 	if lower {
 		return ret.String(), nil
+	} else if mixed {
+		return MixedCase(ret.String()), nil
 	}
 	return strings.ToUpper(ret.String()), nil
 }
 
-// Decode decodes bechString(Bech32) returns hrp(human-readable part) and data(32bit data array) / or error
-func Decode(bechString string) (string, []int, error) {
-	if len(bechString) > 90 {
-		return "", nil, fmt.Errorf("too long : len=%d", len(bechString))
+// Decode decodes bchString(Bech32) returns hrp(human-readable part) and data(32bit data array) / or error
+func Decode(bchString string) (string, []int, error) {
+	if len(bchString) > 90 {
+		return "", nil, fmt.Errorf("too long : len=%d", len(bchString))
 	}
-	if strings.ToLower(bechString) != bechString && strings.ToUpper(bechString) != bechString {
-		return "", nil, fmt.Errorf("mixed case")
-	}
-	bechString = strings.ToLower(bechString)
-	hrp := bechString[0:2]
+	bchString = strings.ToLower(bchString)
+	hrp := bchString[0:2]
 	for p, c := range hrp {
 		if c < 33 || c > 126 {
-			return "", nil, fmt.Errorf("invalid character human-readable part : bechString[%d]=%d", p, c)
+			return "", nil, fmt.Errorf("invalid character human-readable part : bchString[%d]=%d", p, c)
 		}
 	}
 	data := []int{}
-	for p := pos + 1; p < len(bechString); p++ {
-		d := strings.Index(charset, fmt.Sprintf("%c", bechString[p]))
+	for p := pos + 1; p < len(bchString); p++ {
+		d := strings.Index(charset, fmt.Sprintf("%c", bchString[p]))
 		if d == -1 {
-			return "", nil, fmt.Errorf("invalid character data part : bechString[%d]=%d", p, bechString[p])
+			return "", nil, fmt.Errorf("invalid character data part : bchString[%d]=%d", p, bchString[p])
 		}
 		data = append(data, d)
 	}
@@ -204,4 +201,25 @@ func AddrEncode(hrp string, version int, program []int) (string, error) {
 		return "", err
 	}
 	return ret, nil
+}
+
+// Create mixed Bch32 address
+func MixedCase(address string) string {
+	lower := false
+	var mixedAddress bytes.Buffer
+	for idx := 2; (idx + 1) < (len(address)-8)/4; idx+4 {
+		if lower {
+			mixedAddress.WriteString(strings.ToLower(address[idx:4]))
+		} else {
+			mixedAddress.WriteString(strings.ToUpper(address[idx:4]))
+		}
+		lower = !lower
+	}
+	hrp := strings.ToUpper(address[0]) + strings.ToLower(address[1])
+	if lower {
+		checksum := strings.ToLower(address[len(address)-6:6])
+	} else {
+		checksum := strings.ToUpper(address[len(address)-6:6])
+	}
+	return hrp + mixedAddress.String() + checksum
 }
