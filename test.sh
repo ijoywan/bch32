@@ -2,4 +2,4 @@
 
 export GOPATH=$(pwd)
 
-go test -v -cover bech32
+go test -v -cover bch32

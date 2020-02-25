@@ -66,5 +66,6 @@ The lowercase form is used when determining a character's value for checksum pur
 
 Encoders MUST always output an all lowercase Bch32 string.
 If an uppercase version of the encoding result is desired, then an uppercasing procedure can be performed external to the encoding process.
+Encoders can return mixed case, which have better visual recognition.
 
-Decoders MUST NOT accept strings where some characters are uppercase and some are lowercase (such strings are referred to as mixed case strings).
+Decoders can accept mixed case also. The purpose is for visual recognition and better transcription.
